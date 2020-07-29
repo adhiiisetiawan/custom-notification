@@ -1,96 +1,96 @@
 package com.example.customnotification;
 
 import android.app.IntentService;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import androidx.core.app.RemoteInput;
 import android.content.Intent;
 import android.content.Context;
+import android.os.Build;
+import android.os.Bundle;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p>
- * TODO: Customize class - update intent actions, extra parameters and static
- * helper methods.
- */
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+
 public class NotificationService extends IntentService {
     private static final String KEY_REPLY = "key_reply";
     public static String REPLY_ACTION = "com.example.notification.directyreply.REPLY_ACTION";
     public static String CHANNEL_ID = "channel_01";
     public static CharSequence CHANNEL_NAME = "channel_name";
 
-    // TODO: Rename actions, choose action names that describe tasks that this
-    // IntentService can perform, e.g. ACTION_FETCH_NEW_ITEMS
-    private static final String ACTION_FOO = "com.example.customnotification.action.FOO";
-    private static final String ACTION_BAZ = "com.example.customnotification.action.BAZ";
+    private int mNotificationId;
+    private int mMessageId;
 
-    // TODO: Rename parameters
-    private static final String EXTRA_PARAM1 = "com.example.customnotification.extra.PARAM1";
-    private static final String EXTRA_PARAM2 = "com.example.customnotification.extra.PARAM2";
-
-    public NotificationService() {
+    public NotificationService(){
         super("NotificationService");
-    }
 
-    /**
-     * Starts this service to perform action Foo with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    // TODO: Customize helper method
-    public static void startActionFoo(Context context, String param1, String param2) {
-        Intent intent = new Intent(context, NotificationService.class);
-        intent.setAction(ACTION_FOO);
-        intent.putExtra(EXTRA_PARAM1, param1);
-        intent.putExtra(EXTRA_PARAM2, param2);
-        context.startService(intent);
-    }
-
-    /**
-     * Starts this service to perform action Baz with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    // TODO: Customize helper method
-    public static void startActionBaz(Context context, String param1, String param2) {
-        Intent intent = new Intent(context, NotificationService.class);
-        intent.setAction(ACTION_BAZ);
-        intent.putExtra(EXTRA_PARAM1, param1);
-        intent.putExtra(EXTRA_PARAM2, param2);
-        context.startService(intent);
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
-        if (intent != null) {
-            final String action = intent.getAction();
-            if (ACTION_FOO.equals(action)) {
-                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-                handleActionFoo(param1, param2);
-            } else if (ACTION_BAZ.equals(action)) {
-                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-                handleActionBaz(param1, param2);
-            }
+    protected void onHandleIntent(@Nullable Intent intent) {
+        if (intent != null){
+            showNotification();
         }
     }
 
-    /**
-     * Handle action Foo in the provided background thread with the provided
-     * parameters.
-     */
-    private void handleActionFoo(String param1, String param2) {
-        // TODO: Handle action Foo
-        throw new UnsupportedOperationException("Not yet implemented");
+    private void showNotification(){
+        mNotificationId = 1;
+        mMessageId = 123;
+
+        String replyLabel = getString(R.string.notif_action_reply);
+        RemoteInput remoteInput = new RemoteInput.Builder(KEY_REPLY)
+                .setLabel(replyLabel)
+                .build();
+
+        NotificationCompat.Action replyAction = new NotificationCompat.Action.Builder(
+                R.drawable.baseline_reply_black_24dp, replyLabel, getReplyPendingIntent())
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(true)
+                .build();
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.baseline_notifications_white_48dp)
+                .setContentTitle(getString(R.string.notif_title))
+                .setContentText(getString(R.string.notif_content))
+                .setShowWhen(true)
+                .addAction(replyAction);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
+            builder.setChannelId(CHANNEL_ID);
+            if (notificationManager != null){
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+
+        Notification notification = builder.build();
+
+        if (notificationManager != null){
+            notificationManager.notify(mNotificationId, notification);
+        }
     }
 
-    /**
-     * Handle action Baz in the provided background thread with the provided
-     * parameters.
-     */
-    private void handleActionBaz(String param1, String param2) {
-        // TODO: Handle action Baz
-        throw new UnsupportedOperationException("Not yet implemented");
+    private PendingIntent getReplyPendingIntent(){
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            intent = NotificationBroadcastReceiver.getReplyMessageIntent(this, mNotificationId, mMessageId);
+            return PendingIntent.getBroadcast(getApplicationContext(), 100, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        } else {
+            intent = ReplyActivity.getReplyMessageIntent(this, mNotificationId, mMessageId);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            return PendingIntent.getActivity(this, 100, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        }
+    }
+
+    public static CharSequence getReplyMessage(Intent intent){
+        Bundle remoteInput = RemoteInput.getResultsFromIntent(intent);
+        if (remoteInput != null){
+            return remoteInput.getCharSequence(KEY_REPLY);
+        }
+        return null;
     }
 }
