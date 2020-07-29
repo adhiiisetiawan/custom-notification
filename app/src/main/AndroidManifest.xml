@@ -12,7 +12,7 @@
         <receiver
             android:name=".NotificationBroadcastReceiver"
             android:enabled="true"
-            android:exported="true"></receiver>
+            android:exported="false"/>
 
         <service
             android:name=".NotificationService"
@@ -26,6 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".NotificationService"
+            android:exported="false"/>
     </application>
 
 </manifest>
